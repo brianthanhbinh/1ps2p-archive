@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>1ps2p - Version Archive</title>
+  <style>
+    body { font-family: sans-serif; background: #111; color: #fff; padding: 30px; max-width: 600px; margin: auto; }
+    a.build { display: block; background: #1e1e1e; color: #4ade80; padding: 12px; margin: 8px 0; border-radius: 6px; text-decoration: none; }
+    a.build:hover { background: #2a2a2a; }
+    small { color: #888; display: block; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <a href="/" style="color: #aaa;">← Back to Latest Game</a>
+  <h1>Old Versions</h1>
+  <div id="list">Loading versions...</div>
+
+  <script>
+    fetch('/api/versions')
+      .then(r => r.json())
+      .then(versions => {
+        document.getElementById('list').innerHTML = versions.map(v => `
+          <a class="build" href="${v.url}" target="_blank">
+            <strong>${v.message}</strong>
+            <small>${new Date(v.created).toLocaleString()} (${v.commit})</small>
+          </a>
+        `).join('');
+      });
+  </script>
+</body>
+</html>

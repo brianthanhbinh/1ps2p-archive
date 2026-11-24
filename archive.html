@@ -2,29 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>1ps2p - Version Archive</title>
   <style>
-    body { font-family: sans-serif; background: #111; color: #fff; padding: 30px; max-width: 600px; margin: auto; }
-    a.build { display: block; background: #1e1e1e; color: #4ade80; padding: 12px; margin: 8px 0; border-radius: 6px; text-decoration: none; }
+    body { font-family: system-ui, sans-serif; background: #111; color: #fff; padding: 30px 18px; max-width: 680px; margin: auto; }
+    a { color: #4ade80; }
+    a.back { color: #aaa; text-decoration: none; }
+    a.build { display: block; background: #1e1e1e; color: #4ade80; padding: 14px; margin: 10px 0; border-radius: 8px; text-decoration: none; overflow-wrap: anywhere; }
     a.build:hover { background: #2a2a2a; }
-    small { color: #888; display: block; margin-top: 4px; }
+    small { color: #999; display: block; margin-top: 5px; }
+    #status { color: #aaa; }
   </style>
 </head>
 <body>
-  <a href="/" style="color: #aaa;">← Back to Latest Game</a>
+  <a class="back" href="./">← Back to archive home</a>
   <h1>Old Versions</h1>
-  <div id="list">Loading versions...</div>
-
+  <p id="status">Loading commit history…</p>
+  <div id="list"></div>
   <script>
-    fetch('/api/versions')
-      .then(r => r.json())
+    const status = document.getElementById("status");
+    const list = document.getElementById("list");
+
+    fetch("./versions.json", { cache: "no-store" })
+      .then(response => {
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
       .then(versions => {
-        document.getElementById('list').innerHTML = versions.map(v => `
-          <a class="build" href="${v.url}" target="_blank">
-            <strong>${v.message}</strong>
-            <small>${new Date(v.created).toLocaleString()} (${v.commit})</small>
-          </a>
-        `).join('');
+        list.replaceChildren();
+        if (!Array.isArray(versions) || versions.length === 0) {
+          status.textContent = "No commits were found.";
+          return;
+        }
+
+        status.textContent = versions.length + " recent commits from 1ps2p";
+        for (const version of versions) {
+          const link = document.createElement("a");
+          link.className = "build";
+          link.href = version.url;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+
+          const title = document.createElement("strong");
+          title.textContent = version.message || "Unnamed commit";
+
+          const meta = document.createElement("small");
+          const date = version.created ? new Date(version.created).toLocaleString() : "Date unavailable";
+          meta.textContent = date + " (" + (version.commit || "unknown") + ")";
+
+          link.append(title, meta);
+          list.append(link);
+        }
+      })
+      .catch(error => {
+        console.error(error);
+        status.textContent = "Couldn't load the commit history. GitHub Actions may still be updating it.";
       });
   </script>
 </body>

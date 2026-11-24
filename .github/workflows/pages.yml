@@ -1,0 +1,83 @@
+name: Deploy version archive
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out archive
+        uses: actions/checkout@v4
+
+      - name: Generate commit history from 1ps2p
+        run: |
+          mkdir -p public
+          cp archive.html public/archive.html
+          cp index.html public/index.html
+          node --input-type=module <<'NODE'
+          import { writeFile } from "node:fs/promises";
+
+          const response = await fetch(
+            "https://api.github.com/repos/brianthanhbinh/1ps2p/commits?per_page=100",
+            {
+              headers: {
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "1ps2p-version-archive"
+              }
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`GitHub API returned ${response.status}: ${await response.text()}`);
+          }
+
+          const commits = await response.json();
+          const versions = commits.map(item => {
+            const sha = item.sha || "";
+            return {
+              url: item.html_url || `https://github.com/brianthanhbinh/1ps2p/commit/${sha}`,
+              message: item.commit?.message?.split("\n")[0] || "Unnamed commit",
+              commit: sha.slice(0, 7),
+              created: item.commit?.author?.date || item.commit?.committer?.date || null
+            };
+          });
+
+          await writeFile("public/versions.json", JSON.stringify(versions, null, 2) + "\n");
+          console.log(`Generated ${versions.length} commit entries.`);
+          NODE
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
